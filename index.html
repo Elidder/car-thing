@@ -404,15 +404,6 @@ function setMode(mode) {
   localStorage.setItem('sp_mode', mode);
   applyMode();
 }
-async function detectAccountType() {
-  const data = await api('/me');
-  if (!data) return;
-
-  isPremium = data.product === 'premium';
-  localStorage.setItem('sp_mode', isPremium ? 'premium' : 'free');
-
-  applyMode();
-}
 function applyMode() {
   document.body.classList.toggle('free-mode', !isPremium);
   document.getElementById('authFreeBtn').classList.toggle('active', !isPremium);
@@ -488,9 +479,6 @@ async function api(path, method='GET', body=null) {
   const res = await fetch('https://api.spotify.com/v1'+path, opts);
   if (res.status===204||res.status===202) return {};
   if (res.status===401) { logout(); return null; }
-  if (res.status === 403) {
-  return { error: 'forbidden' };
-  }
   if (!res.ok) return null;
   return res.json().catch(()=>({}));
 }
@@ -498,7 +486,7 @@ async function api(path, method='GET', body=null) {
 function showPlayer() {
   document.getElementById('auth-screen').style.display='none';
   document.getElementById('player-screen').classList.add('visible');
-  detectAccountType(); fetchState(); schedulePoll(); startProgressTick(); setupIdle();
+  fetchState(); schedulePoll(); startProgressTick(); setupIdle();
 }
 function schedulePoll() {
   clearTimeout(pollTimer);
@@ -506,29 +494,51 @@ function schedulePoll() {
 }
 
 async function fetchState() {
-  let data = await api('/me/player');
-
-  // fallback если нет доступа или устройства
-  if (!data || data.error === 'forbidden' || !data.item) {
-    data = await api('/me/player/currently-playing');
-  }
-
-  if (!data || !data.item) {
+  const endpoint = isPremium ? '/me/player' : '/me/player/currently-playing';
+  const data = await api(endpoint);
+  if (!data||!data.item) {
     document.getElementById('nothingPlaying').style.display='flex';
     document.getElementById('mainPlayer').style.display='none';
-    isPlaying=false;
-    return;
+    isPlaying=false; return;
   }
-
   document.getElementById('nothingPlaying').style.display='none';
   document.getElementById('mainPlayer').style.display='contents';
 
-  const track = data.item;
-  isPlaying = data.is_playing;
-  trackDuration = track.duration_ms;
-  trackProgress = data.progress_ms;
+  const track=data.item;
+  isPlaying=data.is_playing; trackDuration=track.duration_ms; trackProgress=data.progress_ms;
+
+  if (isPremium) {
+    shuffleState=data.shuffle_state; repeatState=data.repeat_state;
+    updateShuffleBtn(); updateRepeatBtn();
+    if (data.device) {
+      document.getElementById('deviceInfo').style.visibility='visible';
+      document.getElementById('deviceName').textContent=data.device.name;
+      document.getElementById('volSlider').value=data.device.volume_percent;
+    }
+  } else {
+    document.getElementById('deviceInfo').style.visibility='hidden';
+  }
 
   updatePlayBtn();
+  document.getElementById('albumContainer').className='album-container '+(isPlaying?'playing':'paused');
+  document.getElementById('timeTotal').textContent=fmtMs(trackDuration);
+  document.getElementById('progressFill').style.width=(trackProgress/trackDuration*100).toFixed(2)+'%';
+  document.getElementById('timeNow').textContent=fmtMs(trackProgress);
+
+  if (track.id!==currentTrackId) {
+    currentTrackId=track.id;
+    document.getElementById('trackName').textContent=track.name;
+    document.getElementById('trackArtist').textContent=
+      track.artists.map(a=>a.name).join(', ')+' · '+track.album.name;
+    const imgUrl=track.album.images?.[0]?.url;
+    const img=document.getElementById('albumArt'), ph=document.getElementById('albumPh');
+    if (imgUrl) {
+      img.classList.add('loading'); img.style.display='block'; ph.style.display='none';
+      img.onload=()=>{ img.classList.remove('loading'); setAmbient(imgUrl); };
+      img.src=imgUrl;
+    } else { img.style.display='none'; ph.style.display='flex'; }
+    checkLiked(track.id);
+  }
 }
 
 function setAmbient(url) {
