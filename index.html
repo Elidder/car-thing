@@ -874,7 +874,13 @@ if ('serviceWorker' in navigator) {
 
 // ── INIT ──
 (async () => {
-  const params = new URLSearchParams(location.search);
+  // GitHub Pages редиректит через 404.html, параметры могут быть в sessionStorage
+  let search = location.search;
+  if (!search && sessionStorage.getItem('oauth_redirect')) {
+    search = sessionStorage.getItem('oauth_redirect');
+    sessionStorage.removeItem('oauth_redirect');
+  }
+  const params = new URLSearchParams(search);
   const code = params.get('code');
 
   if (code) {

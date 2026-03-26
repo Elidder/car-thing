@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script>
+  // Передаём параметры из /callback обратно в index.html
+  const params = window.location.search;
+  if (params) {
+    sessionStorage.setItem('oauth_redirect', params);
+  }
+  window.location.replace('/car-thing/' + params);
+</script>
+</head>
+<body></body>
+</html>
