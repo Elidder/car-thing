@@ -404,8 +404,7 @@ function setMode(mode) {
   localStorage.setItem('sp_mode', mode);
   applyMode();
 }
-function applyMode() {
-  async function detectAccountType() {
+async function detectAccountType() {
   const data = await api('/me');
   if (!data) return;
 
@@ -413,7 +412,8 @@ function applyMode() {
   localStorage.setItem('sp_mode', isPremium ? 'premium' : 'free');
 
   applyMode();
-  }
+}
+function applyMode() {
   document.body.classList.toggle('free-mode', !isPremium);
   document.getElementById('authFreeBtn').classList.toggle('active', !isPremium);
   document.getElementById('authPremiumBtn').classList.toggle('active', isPremium);
