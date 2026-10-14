@@ -46,7 +46,8 @@ img{-webkit-user-drag:none;display:block;}
 #np{touch-action:none;}
 .npbg{position:absolute;inset:0;background-color:#2a2a2a;transition:background-color 1.2s ease;}
 .npbg::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(0,0,0,.38) 100%);}
-.npm{position:absolute;inset:0;display:flex;flex-direction:column;padding:40px 40px 16px;}
+.npm{position:absolute;inset:0;display:flex;flex-direction:column;padding:12px 40px 16px;}
+.nptop{flex:0 0 auto;height:30px;margin-bottom:10px;display:flex;align-items:center;font-size:19px;font-weight:700;color:rgba(255,255,255,.88);font-variant-numeric:tabular-nums;}
 .npbody{flex:1;min-height:0;display:flex;gap:32px;container-type:size;}
 .npart{flex:0 0 auto;align-self:center;width:min(100cqh,46cqw);height:min(100cqh,46cqw);border-radius:6px;overflow:hidden;background:var(--card);box-shadow:0 16px 48px rgba(0,0,0,.5);}
 .npart img{width:100%;height:100%;object-fit:cover;transition:opacity .35s;}
@@ -171,7 +172,8 @@ body.free .prem{opacity:.38;}
 .port #iclk{font-size:120px;}
 
 /* PORTRAIT (телефон вертикально, узкие окна) */
-.port .npm{padding:32px 32px 28px;}
+.port .npm{padding:12px 32px 28px;}
+.port .nptop{margin-bottom:16px;}
 .port .npbody{flex-direction:column;gap:28px;}
 .port .npart{width:min(100cqw,56cqh);height:min(100cqw,56cqh);}
 .port .npt{font-size:36px;}
@@ -213,6 +215,7 @@ body.free .prem{opacity:.38;}
   <section class="scr empty" id="np">
     <div class="npbg" id="npbg"></div>
     <div class="npm">
+     <div class="nptop"><span id="npclk"></span></div>
      <div class="npbody">
       <div class="npart"><img id="npimg" class="h" alt=""></div>
       <div class="npi">
@@ -433,11 +436,21 @@ async function setCtx(c){
   const info=await ctxInfo(c.uri);
   if(info&&ctxUri===c.uri&&info.kind!=='liked')el.textContent=label+' · '+info.name;
 }
+// обложка грузится заново при обрыве связи: до 6 попыток с растущей паузой
+let artUrl='',artRetry=null;
 function setArt(url){
-  const img=$('npimg');img.classList.add('h');
-  if(!url){img.removeAttribute('src');$('npbg').style.backgroundColor='#2a2a2a';return;}
-  img.onload=()=>img.classList.remove('h');img.src=url;
-  artColor(url,c=>{$('npbg').style.backgroundColor=c;});
+  const img=$('npimg');
+  clearTimeout(artRetry);artUrl=url;
+  if(!url){img.classList.add('h');img.removeAttribute('src');$('npbg').style.backgroundColor='#2a2a2a';return;}
+  if(img.getAttribute('src')===url&&img.complete&&img.naturalWidth){img.classList.remove('h');return;}
+  img.classList.add('h');
+  const load=n=>{
+    const pre=new Image();
+    pre.onload=()=>{if(artUrl!==url)return;img.src=url;img.classList.remove('h');artColor(url,c=>{if(artUrl===url)$('npbg').style.backgroundColor=c;});};
+    pre.onerror=()=>{if(artUrl===url&&n<6)artRetry=setTimeout(()=>load(n+1),Math.min(1000*2**n,15000));};
+    pre.src=url;
+  };
+  load(0);
 }
 function updPlay(){$('bpp').innerHTML=ic(playing?'pause':'play',40);$('meq').classList.toggle('on',playing);}
 // instant=true — без анимации (перемотка, смена трека); обычный ход секунд идёт плавно
@@ -742,6 +755,9 @@ $('np').addEventListener('pointerup',e=>{
 /* ---------- MISC ---------- */
 let toastT;
 function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2600);}
+// часы в левом верхнем углу Now Playing
+function tickTopClock(){const n=new Date(),t=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');if($('npclk').textContent!==t)$('npclk').textContent=t;}
+tickTopClock();setInterval(tickTopClock,1000);
 function setupIdle(){['pointerdown','touchstart'].forEach(e=>document.addEventListener(e,resetIdle,{passive:true}));resetIdle();}
 function resetIdle(){clearTimeout(itimer);$('idle').classList.remove('on');if(idleOn&&tok)itimer=setTimeout(()=>{$('idle').classList.add('on');tickClock();},10000);}
 function tickClock(){
