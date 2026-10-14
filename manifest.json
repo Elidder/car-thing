@@ -5,9 +5,9 @@
   "start_url": "/car-thing/",
   "scope": "/car-thing/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#0a0a0a",
-  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "landscape",
   "icons": [
     {
       "src": "icon.png",

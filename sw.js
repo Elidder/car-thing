@@ -1,4 +1,4 @@
-const CACHE = 'car-thing-v1';
+const CACHE = 'car-thing-v2';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -13,9 +13,17 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+// Сначала сеть (чтобы обновления сайта приходили сразу), кэш — только офлайн
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('spotify.com') || e.request.url.includes('googleapis.com')) return;
+  const url = e.request.url;
+  if (e.request.method !== 'GET' || url.includes('spotify.com') || url.includes('scdn.co')) return;
   e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
+    fetch(e.request).then(r => {
+      if (r.ok && url.startsWith(self.location.origin)) {
+        const copy = r.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copy));
+      }
+      return r;
+    }).catch(() => caches.match(e.request))
   );
 });
